@@ -1,1 +1,445 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ふわふわ毛並み診断 AI - Blue Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Zen Maru Gothic', sans-serif;
+            background: linear-gradient(135deg, #f0fbff 0%, #e6f0ff 100%);
+            overflow-x: hidden;
+        }
+        .bg-deco {
+            position: fixed;
+            z-index: -1;
+            opacity: 0.4;
+            pointer-events: none;
+            animation: float-bg 20s linear infinite;
+        }
+        @keyframes float-bg {
+            from { transform: translateY(0) rotate(0deg); }
+            to { transform: translateY(-100vh) rotate(360deg); }
+        }
 
+        .fancy-card {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            border: 3px solid #d0e8ff;
+            box-shadow: 0 15px 35px rgba(182, 219, 255, 0.2);
+        }
+
+        .preview-frame {
+            position: relative;
+            padding: 10px;
+            background: white;
+            border-radius: 1.8rem;
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.05);
+        }
+        .frame-corner {
+            position: absolute;
+            font-size: 1.5rem;
+            z-index: 20;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+        }
+
+        .scan-line {
+            position: absolute;
+            width: 100%;
+            height: 6px;
+            background: linear-gradient(to right, transparent, #85d7ff, #fff, #85d7ff, transparent);
+            box-shadow: 0 0 20px #85d7ff;
+            animation: scan 3s ease-in-out infinite;
+            display: none;
+            z-index: 15;
+        }
+        @keyframes scan {
+            0% { top: 0%; opacity: 0; }
+            20% { opacity: 1; }
+            80% { opacity: 1; }
+            100% { top: 100%; opacity: 0; }
+        }
+
+        .btn-fancy {
+            background: linear-gradient(45deg, #7ad3ff, #b3e0ff);
+            transition: all 0.3s;
+        }
+        .btn-fancy:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 8px 20px rgba(122, 211, 255, 0.4);
+        }
+        .loading-dots:after {
+            content: '.';
+            animation: dots 1.5s steps(5, end) infinite;
+        }
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60% { content: '...'; }
+            80%, 100% { content: ''; }
+        }
+        .star-rating {
+            color: #ffd700;
+            font-size: 1.2rem;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        .result-item-card {
+            background: white;
+            padding: 0.75rem;
+            border-radius: 1.5rem;
+            border: 1px solid #e0f2ff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s;
+        }
+        .result-item-card:hover {
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body class="text-gray-700 min-h-screen flex flex-col items-center p-4">
+
+    <div class="bg-deco text-blue-200 text-6xl" style="left: 10%; top: 20%;">🐾</div>
+    <div class="bg-deco text-cyan-100 text-8xl" style="right: 5%; top: 40%; animation-duration: 25s;">☁️</div>
+    <div class="bg-deco text-blue-100 text-4xl" style="left: 15%; top: 70%; animation-delay: -5s;">✨</div>
+    <div class="bg-deco text-sky-100 text-5xl" style="right: 15%; top: 10%;">❄️</div>
+
+    <header class="w-full max-w-2xl text-center py-10">
+        <h1 class="text-4xl font-bold text-sky-500 mb-2 flex justify-center items-center gap-2">
+            <span>💎</span> ふわふわ毛並み診断 <span>💎</span>
+        </h1>
+        <p class="text-sky-400 font-medium italic">AIが清らかな魔法で毛並みを数えるよ♪</p>
+    </header>
+
+    <main class="w-full max-w-xl fancy-card p-8 rounded-[2.5rem]">
+        
+        <!-- Upload Section -->
+        <div id="upload-container" class="mb-8">
+            <label class="group block p-12 border-4 border-dashed border-sky-100 rounded-[2rem] cursor-pointer hover:border-sky-300 hover:bg-sky-50/50 transition-all text-center relative overflow-hidden" id="drop-zone">
+                <input type="file" id="file-input" class="hidden" accept="image/*">
+                <div id="upload-prompt">
+                    <div class="text-6xl mb-4 group-hover:scale-110 transition-transform duration-300">🧊🐾</div>
+                    <p class="text-xl font-bold text-sky-400">写真をえらぶ</p>
+                    <p class="text-sm text-sky-300 mt-2">爽やかにドロップしてみてね！</p>
+                </div>
+            </label>
+        </div>
+
+        <!-- Preview & Analyze Area -->
+        <div id="preview-section" class="hidden">
+            <div class="preview-frame mb-8">
+                <span class="frame-corner -top-2 -left-2">❄️</span>
+                <span class="frame-corner -top-2 -right-2">💎</span>
+                <span class="frame-corner -bottom-2 -left-2">🐾</span>
+                <span class="frame-corner -bottom-2 -right-2">✨</span>
+
+                <div class="relative overflow-hidden rounded-[1.5rem] shadow-inner bg-sky-50 aspect-square flex items-center justify-center border border-sky-100">
+                    <img id="image-preview" class="max-w-full max-h-full object-contain">
+                    <div id="scan-line" class="scan-line"></div>
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-3">
+                <button id="analyze-btn" class="w-full btn-fancy text-white font-bold py-5 px-8 rounded-full text-xl shadow-lg flex items-center justify-center gap-3">
+                    <span>🪄 氷の魔法で数える！</span>
+                </button>
+                <button id="re-upload-btn" class="text-sky-300 text-sm font-bold hover:text-sky-500 py-2">
+                    別の写真にする ↻
+                </button>
+            </div>
+        </div>
+
+        <!-- Results Area -->
+        <div id="results-section" class="hidden mt-8 animate-fadeIn">
+            <!-- 診断元の写真を縮小して表示 -->
+            <div class="flex justify-center mb-6">
+                <div class="w-40 h-40 preview-frame">
+                    <div class="relative overflow-hidden rounded-[1.2rem] shadow-sm bg-sky-50 w-full h-full flex items-center justify-center border border-sky-100">
+                        <img id="result-photo" class="max-w-full max-h-full object-contain">
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3 mb-6">
+                <span class="text-3xl animate-bounce">❄️</span>
+                <h2 class="text-2xl font-bold text-sky-500">診断が終わったよ！</h2>
+            </div>
+            
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
+                <div class="result-item-card">
+                    <p class="text-[10px] text-sky-300 font-bold mb-1">推定本数</p>
+                    <p id="total-count" class="text-xl font-black text-sky-500">---</p>
+                    <p class="text-[10px] text-gray-400">本</p>
+                </div>
+                <div class="result-item-card">
+                    <p class="text-[10px] text-sky-300 font-bold mb-1">密集度</p>
+                    <p id="density-count" class="text-xl font-black text-cyan-400">---</p>
+                    <p class="text-[10px] text-gray-400">本/cm²</p>
+                </div>
+                <div class="result-item-card">
+                    <p class="text-[10px] text-sky-300 font-bold mb-1">毛質タイプ</p>
+                    <p id="hair-type" class="text-xl font-black text-blue-400">---</p>
+                    <p class="text-[10px] text-gray-400">質感</p>
+                </div>
+                <div class="result-item-card">
+                    <p class="text-[10px] text-sky-300 font-bold mb-1">ラッキーカラー</p>
+                    <p id="lucky-color" class="text-xl font-black transition-colors duration-500">---</p>
+                    <p class="text-[10px] text-gray-400">おすすめ</p>
+                </div>
+                <div class="result-item-card sm:col-span-2 flex-row gap-4 py-2">
+                    <div class="text-center">
+                        <p class="text-[10px] text-sky-300 font-bold mb-1">写真スコア</p>
+                        <div id="photo-stars" class="star-rating">⭐⭐⭐⭐⭐</div>
+                    </div>
+                    <div class="flex-1 border-l border-sky-50 pl-4">
+                        <p id="photo-eval-comment" class="text-[10px] text-sky-600 font-bold italic">ステキな写真だね！</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Advice Section -->
+            <div class="bg-indigo-50/50 p-5 rounded-3xl border border-indigo-100 mb-4 shadow-sm">
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="text-lg">🥣</span>
+                    <p class="text-xs font-bold text-indigo-500">もっとふわふわにする対策</p>
+                </div>
+                <p id="hair-advice" class="text-sm text-gray-700 leading-relaxed font-medium">
+                    アドバイスを取得中...
+                </p>
+            </div>
+
+            <div class="bg-sky-50/50 p-4 rounded-3xl border border-sky-100 mb-4">
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="text-lg">✨</span>
+                    <p class="text-xs font-bold text-sky-500">チャームポイント</p>
+                </div>
+                <p id="charm-point" class="text-sm text-gray-700 font-bold">ここに魅力が表示されるよ</p>
+            </div>
+
+            <div class="bg-white p-6 rounded-3xl border-2 border-sky-50 shadow-sm relative mb-4">
+                <div class="absolute -top-4 left-6 bg-sky-400 text-white text-xs font-bold px-3 py-1 rounded-full">AIの鑑定結果</div>
+                <p id="ai-comment" class="text-sm text-gray-600 leading-relaxed pt-2 italic">解析を待ってるよ...</p>
+            </div>
+            
+            <button id="new-diagnosis-btn" class="mt-6 w-full btn-fancy text-white font-bold py-4 px-8 rounded-full shadow-md">
+                別の子を診断する 🐾
+            </button>
+        </div>
+
+        <!-- Loading Overlay -->
+        <div id="loading-overlay" class="hidden fixed inset-0 bg-white/90 backdrop-blur-lg flex items-center justify-center z-50">
+            <div class="text-center p-10">
+                <div class="text-7xl animate-pulse mb-8">❄️🐈❄️</div>
+                <p class="text-2xl font-bold text-sky-500 mb-3">ひんやり魔法をかけてるよ<span class="loading-dots"></span></p>
+                <p class="text-sm text-sky-300 font-medium">一本ずつ丁寧に数えている最中だよ♪</p>
+            </div>
+        </div>
+    </main>
+
+    <footer class="mt-12 text-sky-300 text-xs pb-10 font-bold tracking-widest">
+        ❄️ ✨ FLUFFY ANALYZER - ICE BLUE ✨ ❄️
+    </footer>
+
+    <script>
+        const apiKey = ""; 
+        const fileInput = document.getElementById('file-input');
+        const uploadContainer = document.getElementById('upload-container');
+        const previewSection = document.getElementById('preview-section');
+        const imagePreview = document.getElementById('image-preview');
+        const resultPhoto = document.getElementById('result-photo');
+        const analyzeBtn = document.getElementById('analyze-btn');
+        const reUploadBtn = document.getElementById('re-upload-btn');
+        const newDiagnosisBtn = document.getElementById('new-diagnosis-btn');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const scanLine = document.getElementById('scan-line');
+        const resultsSection = document.getElementById('results-section');
+        
+        const totalCountEl = document.getElementById('total-count');
+        const densityCountEl = document.getElementById('density-count');
+        const hairTypeEl = document.getElementById('hair-type');
+        const luckyColorEl = document.getElementById('lucky-color');
+        const charmPointEl = document.getElementById('charm-point');
+        const hairAdviceEl = document.getElementById('hair-advice');
+        const aiCommentEl = document.getElementById('ai-comment');
+        const photoStarsEl = document.getElementById('photo-stars');
+        const photoEvalCommentEl = document.getElementById('photo-eval-comment');
+
+        let base64Image = "";
+        let imageHash = 0;
+        const resultsCache = {};
+
+        function generateHash(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                const char = str.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash;
+            }
+            return Math.abs(hash);
+        }
+
+        function resetUI() {
+            base64Image = "";
+            imageHash = 0;
+            fileInput.value = "";
+            uploadContainer.classList.remove('hidden');
+            previewSection.classList.add('hidden');
+            resultsSection.classList.add('hidden');
+            analyzeBtn.classList.remove('hidden');
+            scanLine.style.display = 'none';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    imagePreview.src = event.target.result;
+                    resultPhoto.src = event.target.result;
+                    base64Image = event.target.result.split(',')[1];
+                    imageHash = generateHash(base64Image);
+                    previewSection.classList.remove('hidden');
+                    uploadContainer.classList.add('hidden');
+                    resultsSection.classList.add('hidden');
+                    analyzeBtn.classList.remove('hidden');
+                    scanLine.style.display = 'none';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        reUploadBtn.addEventListener('click', resetUI);
+        newDiagnosisBtn.addEventListener('click', resetUI);
+
+        async function analyzeHair(prompt, image, seed) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            const payload = {
+                contents: [{
+                    parts: [
+                        { text: prompt },
+                        { inlineData: { mimeType: "image/png", data: image } }
+                    ]
+                }],
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    seed: seed, 
+                    temperature: 0,
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            totalCount: { type: "NUMBER" },
+                            density: { type: "NUMBER" },
+                            hairType: { type: "STRING" },
+                            luckyColor: { type: "STRING" },
+                            luckyColorCode: { type: "STRING" },
+                            charmPoint: { type: "STRING" },
+                            hairAdvice: { type: "STRING" },
+                            comment: { type: "STRING" },
+                            photoScore: { type: "NUMBER" },
+                            photoComment: { type: "STRING" }
+                        },
+                        required: ["totalCount", "density", "hairType", "luckyColor", "luckyColorCode", "charmPoint", "hairAdvice", "comment", "photoScore", "photoComment"]
+                    }
+                }
+            };
+
+            for (let i = 0; i < 5; i++) {
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (!response.ok) throw new Error('API Error');
+                    const data = await response.json();
+                    return JSON.parse(data.candidates[0].content.parts[0].text);
+                } catch (err) {
+                    const delay = Math.pow(2, i) * 1000;
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+            throw new Error('ごめんね、魔法がうまくかからなかったみたい。');
+        }
+
+        function displayResult(result) {
+            totalCountEl.textContent = result.totalCount?.toLocaleString();
+            densityCountEl.textContent = result.density?.toLocaleString();
+            hairTypeEl.textContent = result.hairType;
+            luckyColorEl.textContent = result.luckyColor;
+            luckyColorEl.style.color = result.luckyColorCode;
+            charmPointEl.textContent = result.charmPoint;
+            hairAdviceEl.textContent = result.hairAdvice;
+            aiCommentEl.textContent = result.comment;
+            photoStarsEl.textContent = "⭐".repeat(Math.max(1, Math.min(5, result.photoScore)));
+            photoEvalCommentEl.textContent = result.photoComment;
+
+            resultsSection.classList.remove('hidden');
+            previewSection.classList.add('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        analyzeBtn.addEventListener('click', async () => {
+            if (!base64Image) return;
+
+            if (resultsCache[imageHash]) {
+                displayResult(resultsCache[imageHash]);
+                return;
+            }
+
+            loadingOverlay.classList.remove('hidden');
+            scanLine.style.display = 'block';
+
+            const prompt = `
+                この動物の画像を見て詳細な鑑定を行ってください。
+                
+                【厳守事項】
+                この画像のシード値（${imageHash}）に基づき、同じ画像に対しては常に全く同じ数値結果を返してください。
+
+                1. 総本数 (totalCount)
+                2. 1cm2あたりの密度 (density)
+                3. 毛質タイプ (hairType)
+                4. ラッキーカラー (luckyColor)
+                5. ラッキーカラーのウェブカラーコード (luckyColorCode)
+                6. チャームポイント (charmPoint)
+                7. 毛並みをより良くするための対策アドバイス (hairAdvice: 
+                   具体的なケア方法や食事、ブラッシングのコツなどを100文字程度で。
+                   もし今のままで完璧なら「今のままでもとっても綺麗だよ！」と肯定的な言葉を添えてください)
+                8. 毛並みの鑑定詳細コメント (comment)
+                9. 写真の総合スコア (photoScore: 1〜5)
+                10. 写真への短い評価コメント (photoComment)
+                
+                結果は日本語のJSON形式で返してください。
+            `;
+
+            try {
+                const result = await analyzeHair(prompt, base64Image, imageHash);
+                resultsCache[imageHash] = result;
+                displayResult(result);
+            } catch (error) {
+                alert(error.message);
+            } finally {
+                loadingOverlay.classList.add('hidden');
+                scanLine.style.display = 'none';
+            }
+        });
+
+        const dropZone = document.getElementById('drop-zone');
+        dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('bg-sky-100', 'border-sky-400'); };
+        dropZone.ondragleave = () => { dropZone.classList.remove('bg-sky-100', 'border-sky-400'); };
+        dropZone.ondrop = (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('bg-sky-100', 'border-sky-400');
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                fileInput.files = e.dataTransfer.files;
+                fileInput.dispatchEvent(new Event('change'));
+            }
+        };
+    </script>
+</body>
+</html>
